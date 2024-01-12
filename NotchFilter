@@ -1,0 +1,107 @@
+%Math 155 Hw 8 Problem 1
+f = imread('Fig5.26a.jpg');
+f = double(f);
+figure(), imshow(uint8(f)), title('Original Image');
+[M, N] = size(f);
+A = 100;
+u0 = 134.4;
+v0 = 0;
+n = zeros(M,N);
+for x = 1:M
+    for y = 1:N
+        n(x,y) = A*sin(2 * pi* u0 * x + 2 * pi * v0 * y);
+        f(x,y) = f(x,y) + n(x,y);
+    end
+end
+f = uint8(f);
+figure();
+imshow(f);
+
+%Specturm
+
+F = fft2(f);
+
+% compute the DFT of f*(-1)^{x+y} 
+F_shifted= fftshift(F); 
+
+% compute the spectrum 
+R=abs(F_shifted);
+
+% Plot the centered spectrum, after rescaling using the log transform 
+% I know that s = clog(r+1) is the log transform -> S = clog(1+R)
+c=5;
+for i = 1:M
+    for j = 1:N
+       
+        S(i,j)=c*log(1+R(i,j));
+    end
+end
+
+% plot the spectrum (transformed by log for visualisation purposes) 
+figure 
+image(S); colormap(gray); axis image; title('spectrum of FT of f'); 
+
+%Notch Filter
+H_NR = ones(M, N);
+notch_centers = [128.5000, 230.9615; 129.1154, 181.1154; 130.7391, 79.9869; 129.8617, 26.0319];
+rect_size = [10, 10];  % 5x5 rectangle
+
+% Loop over each notch center and apply a 5x5 rectangle
+for i = 1:size(notch_centers, 1)
+    u_k = notch_centers(i, 1);
+    v_k = notch_centers(i, 2);
+    
+    % Calculate the indices of the rectangle
+    rows = round(v_k-(rect_size(1)-1)/2):round(v_k+(rect_size(1)-1)/2);
+    cols = round(u_k-(rect_size(2)-1)/2):round(u_k+(rect_size(2)-1)/2);
+    
+    % Ensure the indices are within the image boundaries
+    rows(rows < 1 | rows > M) = [];
+    cols(cols < 1 | cols > N) = [];
+    
+    % Set the values of H_NR to zero at the rectangle's location
+    H_NR(rows, cols) = 0;
+    H_NR(M-rows+1, N-cols+1) = 0; % Mirror the rectangle to the opposite quadrant
+end
+
+% Apply the notch filter to the shifted Fourier Transform
+F_filtered = F_shifted.* H_NR;
+
+% Inverse Fourier Transform to get the filtered image
+f_filtered = ifft2(ifftshift(F_filtered));
+f_filtered = real(f_filtered);  % Take the real part
+
+% Display the filtered image
+figure, imshow(uint8(f_filtered)), title('Filtered Image');
+
+%%%%%%%%%%%%%%
+%Updated Specturm
+
+% multiply f by (-1)^(x+y) to shift the center 
+for i = 1:M
+   for j = 1:N
+         %d = ((x-1),(y-1))
+         d=(i-1)+(j-1);
+         H(i,j)=f_filtered(i,j)*(-1)^d;
+   end
+end
+
+% compute the DFT of f*(-1)^{x+y} 
+F=fft2(H); 
+
+% compute the spectrum 
+R=abs(F);
+
+% Plot the centered spectrum, after rescaling using the log transform 
+% I know that s = clog(r+1) is the log transform -> S = clog(1+R)
+c=5;
+for i = 1:M
+    for j = 1:N
+       
+        S(i,j)=c*log(1+R(i,j));
+    end
+end
+
+% plot the spectrum (transformed by log for visualisation purposes) 
+figure 
+image(S); colormap(gray); axis image; title('spectrum of FT of f'); 
